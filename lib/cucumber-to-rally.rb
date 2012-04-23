@@ -11,56 +11,87 @@ require 'fileutils'
 
 CONTENT = '# -*- encoding : utf-8 -*-
 
+
+# => The function createTestCase, used in this example, don\'t use the complete params, so, all Test Cases created with
+# => this hooks example will be this following values: Type: Functional, Method: Automated and Priority: Critical.
+#
+# => The order of params of this function are: workspace, project, name, description,owner, type, method, priority,id*
+#
+# => At the moment, the id param is useless. For the next review, your use will be studied
+#
+
 cucumber = CucumberToRally::CucumberToRally.new
 
 #Params to Connect on Rally
-LOGIN =
-PASSWORD =
+LOGIN = #Insert here your Rally login
+PASSWORD = #Insert here your password
 
 #Params to create a Test Case Result
-WORKSPACE =
-PROJECT =
-BUILD = "Cucumber"
+WORKSPACE = #Workspace of the Project
+PROJECT = #Id of the Project
+BUILD =  #Default build, case you want to define a default Build Name
+
+
+
+
+# The Before do "function" run before each scenario. In this hooks.rb file example, Before the scenario runs, I connect on Rally.
 
 Before do
+	# Connect to Rally before the Scenario run. Can be used after the scenario run too.
 	cucumber.connect(LOGIN,PASSWORD)
 end
 
+#The After do |scenario| "function" runs after each scenario. The scenario variable allow us to make some validations before save the Test Case Result or create a Test Case, if the scenario hasn\'t been created yet.
+
 After do |scenario|
+
+#
+# => The following lines are ways to identfy existing Test Cases, but nothing prevents you of using other ways
+# => to identify existings Test Cases.
+#
+
+	if scenario.source_tag_names.first == nil
+		TC_ID = 0
+		isId = "none"
+	else
+		isId = scenario.source_tag_names.first;
+		isId = isId.gsub("@","")
+	end
+
+	if isId.start_with?("TC")
+		TC_ID = isId
+	end
+
+	#This "if" will be executed only if the scenario fail.
 	if (scenario.failed?)
 		begin
-			if (scenario.source_tag_names.first == "@configuration")
-				Kernel.puts "Cenario de Configuracao. Guardando variaveis."
-			else
-				Kernel.puts "O cenario #{scenario.name} falhou!"
-				if (TC_ID == 0)
-					begin
-						Kernel.puts "Criando Test Case\n"
-						newTC = cucumber.createTestCase(WORKSPACE,PROJECT,scenario.name,"Teste de Execucao do Cucumber",OWNER,TYPE,METHOD,PRIORITY)
-						Kernel.puts "Caso de Teste Criado: " + newTC.to_s
-						cucumber.createFirstTestCaseResult(WORKSPACE,PROJECT,newTC.to_s,BUILD,"Pass")
-					end
-				else
-					cucumber.createTestCaseResult(WORKSPACE,PROJECT,TC_ID,BUILD,"Fail")
+			Kernel.puts "The scenario #{scenario.name} failed!" #Sends a message to the prompt!
+			if (TC_ID == 0) # Case the TC_ID constant isn\'t defined, a new Test Case will be created!
+				begin
+					Kernel.puts "Creating Test Case\n" #Sends a message to the prompt!
+					newTC = cucumber.createTestCase(WORKSPACE,PROJECT,scenario.name,"Cucumber Execution Test")
+					Kernel.puts "Test Case created: " + newTC.to_s # Sends to the prompt, if the Test Case was created.
+					cucumber.createFirstTestCaseResult(WORKSPACE,PROJECT,newTC.to_s,BUILD,"Fail") #Create a result for the Test Case created
 				end
+			else
+				cucumber.createTestCaseResult(WORKSPACE,PROJECT,TC_ID,BUILD,"Fail") #Just runs if the ID was informated.
 			end
 		end
-	else
+	end
+
+	#This if will be executed only if the scenario pass.
+	if (scenario.passed?)
 		begin
-			if (scenario.source_tag_names.first == "@configuration")
-				Kernel.puts "Cenario de Configuracao. Guardando variaveis."
-			else
-				Kernel.puts "O cenario #{scenario.name} foi executado com sucesso!"
-				if (TC_ID == 0)
+			Kernel.puts "The scenario #{scenario.name} passed!" #Sends a message to the prompt
+			if (TC_ID == 0) # Case the TC_ID constant isn\'t defined, a new Test Case will be created!
 				begin
-					Kernel.puts "Criando Test Case\n"
-					newTC = cucumber.createTestCase(WORKSPACE,PROJECT,scenario.name,"Teste de Execucao do Cucumber",OWNER,TYPE,METHOD,PRIORITY)
-					Kernel.puts "Caso de Teste Criado: " + newTC.to_s
-					cucumber.createFirstTestCaseResult(WORKSPACE,PROJECT,newTC.to_s,BUILD,"Pass")
+					Kernel.puts "Creating Test Case\n" #Sends a message to the prompt
+					newTC = cucumber.createTestCase(WORKSPACE,PROJECT,scenario.name,"Cucumber Execution Test")
+					Kernel.puts "Test Case created: " + newTC.to_s # Sends to the prompt, if the Test Case was created.
+					cucumber.createFirstTestCaseResult(WORKSPACE,PROJECT,newTC.to_s,BUILD,"Pass") #Create a result for the Test Case created
 				end
-				else
-					cucumber.createTestCaseResult(WORKSPACE,PROJECT,TC_ID,BUILD,"Pass")
-				end
+			else
+				cucumber.createTestCaseResult(WORKSPACE,PROJECT,TC_ID,BUILD,"Pass") #Just runs if the ID was informated
 			end
 		end
 	end
